@@ -35,33 +35,6 @@ that we have created in the `__init__` function.
 
 '''
 
-velocity_plot = np.array([0])
-acceleration_plot = np.array([0])
-jerk_plot = np.array([0])
-x = np.array([0])
-i = 0
-
-plt.ion()
-fig = plt.figure()
-
-ax = fig.add_subplot(311)
-ax.set_xlim([-1,2000])
-ax.set_ylim([-1,120])
-ax.set_title("Velocity")
-velocity, = ax.plot(velocity_plot, 'r-')
-
-ax_acc = fig.add_subplot(312)
-ax_acc.set_xlim([-1,2000])
-ax_acc.set_ylim([-10, 10])
-ax_acc.set_title("Acceleration")
-acceleration, = ax_acc.plot(acceleration_plot, 'b')
-
-ax_jerk = fig.add_subplot(313)
-ax_jerk.set_xlim([-1,2000])
-ax_jerk.set_ylim([-200, 200])
-ax_jerk.set_title("Jerk")
-jerk, = ax_jerk.plot(acceleration_plot, 'g')
-
 class DBWNode(object):
     def __init__(self):
         rospy.init_node('dbw_node')
@@ -100,8 +73,10 @@ class DBWNode(object):
         self.proposed_twist = None
         self.dbw_enabled = False
 
+        self.velocity_plot = [0]
+        self.acceleration_plot = [0]
+        self.jerk_plot = [0]
         self.previous = rospy.get_time()
-        plt.show(block=True)
 
         self.controls = []
 
@@ -161,24 +136,28 @@ class DBWNode(object):
         self.brake_pub.publish(bcmd)
 
     def plot_velocity(self):
-        global fig, jerk_plot, acceleration_plot, velocity_plot, i, x
-        mph_to_ms = 0.44704
-
-        velocity_plot = np.append(velocity_plot, self.current_twist.linear.x)
-        x = np.append(x, i)
-        i += 1
         now = rospy.get_time()
-        acceleration_plot = np.append(acceleration_plot, (velocity_plot[i] - velocity_plot[i-1])*mph_to_ms/(now - self.previous))
-        jerk_plot = np.append(jerk_plot, (acceleration_plot[i] - acceleration_plot[i-1])/(now - self.previous))
+        diff_time = now - self.previous
         self.previous = now
 
-        velocity.set_ydata(velocity_plot)
-        velocity.set_xdata(x)
-        acceleration.set_ydata(acceleration_plot)
-        acceleration.set_xdata(x)
-        jerk.set_ydata(jerk_plot)
-        jerk.set_xdata(x)
-        fig.canvas.draw()
+        self.velocity_plot.append(np.array(self.current_twist.linear.x))
+        i = len(self.velocity_plot) - 1
+        self.acceleration_plot.append((self.velocity_plot[i] - self.velocity_plot[i-1])/diff_time)
+        self.jerk_plot.append((self.acceleration_plot[i] - self.acceleration_plot[i-1])/diff_time)
+
+        if i % 2000  == 0:
+            mph_to_ms = 0.44704
+            velocity_mph = list(map(lambda x:x/mph_to_ms, self.velocity_plot))
+            ax_v = plt.subplot(3, 1, 1)
+            ax_v.set_title("Velocity")
+            ax_v.plot(velocity_mph, 'r-')
+            ax_a = plt.subplot(3, 1, 2)
+            ax_a.set_title("Acceleration")
+            ax_a.plot(self.acceleration_plot, 'g-')
+            ax_j = plt.subplot(3, 1, 3)
+            ax_j.set_title("Jerk")
+            ax_j.plot(self.jerk_plot, 'b-')
+            plt.show()
 
 
 if __name__ == '__main__':
