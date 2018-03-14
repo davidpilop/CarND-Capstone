@@ -76,7 +76,7 @@ class DBWNode(object):
         self.velocity_plot = []
         self.acceleration_plot = []
         self.jerk_plot = []
-        self.previous = rospy.get_time()
+        self.time_x = []
 
         self.controls = []
 
@@ -136,19 +136,14 @@ class DBWNode(object):
         self.brake_pub.publish(bcmd)
 
     def plot_velocity(self):
-        now = rospy.get_time()
-        diff_time = now - self.previous
-        self.previous = now
-
+        self.time_x.append(np.array(rospy.get_time()))
         self.velocity_plot.append(np.array(self.current_twist.linear.x))
-        i = len(self.velocity_plot) - 1
+        if len(self.velocity_plot) > 1:
+            self.acceleration_plot.append((self.velocity_plot[-1] - self.velocity_plot[-2]))
+        if len(self.acceleration_plot) > 1:
+            self.jerk_plot.append((self.acceleration_plot[-1] - self.acceleration_plot[-2]))
 
-        if i>0:
-            self.acceleration_plot.append((self.velocity_plot[i] - self.velocity_plot[i-1])/diff_time)
-        if i>3:
-            self.jerk_plot.append((self.acceleration_plot[i-2] - self.acceleration_plot[i-3])/diff_time)
-
-        if i == 2000:
+        if (len(self.velocity_plot) == 200):
             ms_to_mph = 2.23694
             velocity_mph = list(map(lambda x:x*ms_to_mph, self.velocity_plot))
             ax_v = plt.subplot(3, 1, 1)
@@ -156,10 +151,10 @@ class DBWNode(object):
             ax_v.plot(velocity_mph, 'r-')
             ax_a = plt.subplot(3, 1, 2)
             ax_a.set_title("Acceleration")
-            ax_a.plot(self.acceleration_plot[200:], 'g-')
+            ax_a.plot(self.acceleration_plot, 'g-')
             ax_j = plt.subplot(3, 1, 3)
             ax_j.set_title("Jerk")
-            ax_j.plot(self.jerk_plot[200:], 'b-')
+            ax_j.plot(self.jerk_plot, 'b-')
             plt.show()
             exit(0)
 
