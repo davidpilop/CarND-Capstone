@@ -73,18 +73,12 @@ class DBWNode(object):
         self.proposed_twist = None
         self.dbw_enabled = False
 
-        self.velocity_plot = []
-        self.acceleration_plot = []
-        self.jerk_plot = []
-        self.time_x = []
-
         self.controls = []
 
         self.loop()
 
     def current_twist_cb(self, msg):
         self.current_twist = msg.twist
-        self.plot_velocity()
 
     def proposed_twist_cb(self, msg):
         self.proposed_twist = msg.twist
@@ -134,29 +128,6 @@ class DBWNode(object):
         bcmd.pedal_cmd_type = BrakeCmd.CMD_PERCENT
         bcmd.pedal_cmd = brake
         self.brake_pub.publish(bcmd)
-
-    def plot_velocity(self):
-        self.time_x.append(np.array(rospy.get_time()))
-        self.velocity_plot.append(np.array(self.current_twist.linear.x))
-        if len(self.velocity_plot) > 1:
-            self.acceleration_plot.append((self.velocity_plot[-1] - self.velocity_plot[-2]))
-        if len(self.acceleration_plot) > 1:
-            self.jerk_plot.append((self.acceleration_plot[-1] - self.acceleration_plot[-2]))
-
-        if (len(self.velocity_plot) == 200):
-            ms_to_mph = 2.23694
-            velocity_mph = list(map(lambda x:x*ms_to_mph, self.velocity_plot))
-            ax_v = plt.subplot(3, 1, 1)
-            ax_v.set_title("Velocity")
-            ax_v.plot(velocity_mph, 'r-')
-            ax_a = plt.subplot(3, 1, 2)
-            ax_a.set_title("Acceleration")
-            ax_a.plot(self.acceleration_plot, 'g-')
-            ax_j = plt.subplot(3, 1, 3)
-            ax_j.set_title("Jerk")
-            ax_j.plot(self.jerk_plot, 'b-')
-            plt.show()
-            exit(0)
 
 
 if __name__ == '__main__':
